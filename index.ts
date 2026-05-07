@@ -48,7 +48,7 @@ client.on("messageReactionAdd", async (reaction) => {
 
   const message = reaction.message;
   if (message.channelId != vanneChannelId)
-    if (reaction.count && reaction.count >= minReactionNumber)
+    if (reaction.count && reaction.count == minReactionNumber)
       if (reaction.emoji.id == emojiValideId)
         message.forward(vanneChannelId);
 })
