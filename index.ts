@@ -70,8 +70,12 @@ client.on("messageReactionAdd", async (reaction) => {
     const message = reaction.message;
     if (message.channelId != vanneChannelId)
         if (reaction.emoji.id == emojiValideId)
-            if (reaction.count && reaction.count == minReactionNumber)
+            if (reaction.count && reaction.count == minReactionNumber) {
                 message.forward(vanneChannelId);
+                const channel = await client.channels.cache.get(vanneChannelId)
+                for (reaction.message.reactions)
+                if (channel) channel.send()
+            }
 })
 
 
@@ -100,38 +104,43 @@ client.on("messageCreate", async (message) => {
         if (commandArray[0] == "!set") {
             switch (commandArray[1]) {
                 case "vanneChannelId":
-                    message.reply("changing vanne channel from " + vanneChannelId + " to " + commandArray[2])
+                    console.log("changing vanne channel from " + vanneChannelId + " to " + commandArray[2])
                     vanneChannelId = commandArray[2];
-                    message.react("✅");
-                    jsonData.vanneChannelId = vanneChannelId;
 
                 case "adminChannelId":
+                    console.log("changing admin channel from " + adminChannelId + " to " + commandArray[2])
                     adminChannelId = commandArray[2]
+                    jsonData.vanneChannelId = vanneChannelId;
 
                 case "emojiValideId":
+                    console.log("changing emojiValideId from " + emojiValideId + " to " + commandArray[2])
                     emojiValideId = commandArray[2]
                     jsonData.emojiValideId = emojiValideId;
 
                 case "emojiPasValideId":
+                    console.log("changing emojiPasValideId from " + emojiPasValideId + " to " + commandArray[2])
                     emojiPasValideId = commandArray[2]
                     jsonData.emojiPasValideId = emojiPasValideId;
 
                 case "minReactionNumber":
+                    console.log("changing minReactionNumber from " + minReactionNumber + " to " + commandArray[2])
                     minReactionNumber = Number.parseInt(commandArray[2]);
                     jsonData.minReactionNumber = minReactionNumber;
 
                 case '*':
                     data = JSON.stringify(jsonData)
                     fs.writeFileSync(filepath, data)
+                    message.react("✅");
             }
         }
         else if (commandArray[0] == "!help") {
-            message.reply(`Commandes:
-          vanneChannelId      [id] 
-          adminChannelId      [id]
-          emojiValideId       [id]
-          emojiPasValideId    [id]
-          minReactionNumber   [number]
+            message.reply(`Commandes: 
+    !set
+      vanneChannelId      [id] 
+      adminChannelId      [id]
+      emojiValideId       [id]
+      emojiPasValideId    [id]
+      minReactionNumber   [number]
                     `);
         }
         else if (commandArray[0] == "!what") {
