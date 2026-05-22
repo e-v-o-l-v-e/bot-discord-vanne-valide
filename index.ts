@@ -36,7 +36,7 @@ const client = new Client({
 });
 
 
-// pour chaque reaction ajouté
+// pour chaque reaction ajoutée
 // check si on est pas dans le channel de vanne
 // si oui check si c'est :harnein_valide:
 // si oui check si le minimum de reaction est atteint
@@ -66,7 +66,7 @@ client.on("messageReactionAdd", async (reaction) => {
         if (reaction.emoji.id == data.emojis.valid.id)
             if (reaction.count && reaction.count == data.minReactionNumber) {
                 message.forward(data.channels.vannes);
-                const channel = await client.channels.cache.get(data.channels.vannes)
+                const channel = await client.channels.cache.get(data.channels.vannes) as TextChannel;
                 // for (reaction.message.reactions)
                 //     if (channel) channel.send()
             }
@@ -80,10 +80,11 @@ client.on("messageCreate", async (message) => {
         try {
             await message.react(data.emojis.valid.id)
             await message.react(data.emojis.notValid.id)
+            console.log(message)
         } catch {
             console.log("les emojis n'existent pas");
             if (data.channels.vannes != data.channels.admin) {
-                const channel = client.channels.cache.get(data.channels.admin);
+                const channel = client.channels.cache.get(data.channels.admin) as TextChannel;
                 if (channel) channel.send("un ou plusieurs ids d'emoji sont mauvais");
             }
         }
