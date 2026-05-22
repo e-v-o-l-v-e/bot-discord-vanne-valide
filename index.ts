@@ -1,32 +1,26 @@
 import dotenv from 'dotenv';
 import { Client, Emoji, GatewayIntentBits, Guild, GuildEmojiManager, Message, Partials, TextChannel } from 'discord.js';
 import * as fs from 'fs';
-import * as path from 'path';
+import { type Data } from './types.ts';
 
 dotenv.config()
 
-// settings
-var data
-var jsonData
-
-var vanneChannelId: string
-var adminChannelId: string
-var emojiValideId: string
-var emojiPasValideId: string
-var minReactionNumber: number
-
+let data: Data
 const filepath = './data.json';
-try {
-    data = fs.readFileSync(filepath, 'utf8')
-    jsonData = JSON.parse(data);
 
-    vanneChannelId = jsonData.vanneChannelId;
-    adminChannelId = jsonData.adminChannelId;
-    emojiValideId = jsonData.emojiValideId;
-    emojiPasValideId = jsonData.emojiPasValideId;
-    minReactionNumber = jsonData.minReactionNumber;
+try {
+    const rawData = fs.readFileSync(filepath, 'utf8')
+    data = JSON.parse(rawData) as Data;
 } catch {
-    console.log("failed to read jsonData")
+    console.error("failed to read json")
+    data = {
+        channels: { vannes: "", admin: "" },
+        emojis: {
+            valid: { id: "", name: "" },
+            notValid: { id: "", name: "" }
+        },
+        minReactionNumber: 2
+    };
 }
 
 
@@ -46,7 +40,7 @@ const client = new Client({
 // check si on est pas dans le channel de vanne
 // si oui check si c'est :harnein_valide:
 // si oui check si le minimum de reaction est atteint
-// si oui transfere le message dans le channel vanneChannelId et y reagi avec :harnein_valide: et :harnein_valide_pas:
+// si oui transfere le message dans le channel data.channels.vannes et y reagi avec :harnein_valide: et :harnein_valide_pas:
 client.on("messageReactionAdd", async (reaction) => {
 
     if (reaction.partial) {
@@ -68,13 +62,13 @@ client.on("messageReactionAdd", async (reaction) => {
     // console.log(reaction.emoji.id);
 
     const message = reaction.message;
-    if (message.channelId != vanneChannelId)
-        if (reaction.emoji.id == emojiValideId)
-            if (reaction.count && reaction.count == minReactionNumber) {
-                message.forward(vanneChannelId);
-                const channel = await client.channels.cache.get(vanneChannelId)
-                for (reaction.message.reactions)
-                if (channel) channel.send()
+    if (message.channelId != data.channels.vannes)
+        if (reaction.emoji.id == data.emojis.valid.id)
+            if (reaction.count && reaction.count == data.minReactionNumber) {
+                message.forward(data.channels.vannes);
+                const channel = await client.channels.cache.get(data.channels.vannes)
+                // for (reaction.message.reactions)
+                //     if (channel) channel.send()
             }
 })
 
@@ -82,68 +76,82 @@ client.on("messageReactionAdd", async (reaction) => {
 // ajoute les reactions aux messages transférés
 client.on("messageCreate", async (message) => {
 
-    if (message.channelId == vanneChannelId) {
+    if (message.channelId == data.channels.vannes) {
         try {
-            await message.react(emojiValideId)
-            await message.react(emojiPasValideId)
+            await message.react(data.emojis.valid.id)
+            await message.react(data.emojis.notValid.id)
         } catch {
             console.log("les emojis n'existent pas");
-            if (vanneChannelId != adminChannelId) {
-                const channel = client.channels.cache.get(adminChannelId);
+            if (data.channels.vannes != data.channels.admin) {
+                const channel = client.channels.cache.get(data.channels.admin);
                 if (channel) channel.send("un ou plusieurs ids d'emoji sont mauvais");
             }
         }
     }
 
-    if (message.channelId == adminChannelId && !message.author.bot) {
+    if (message.channelId == data.channels.admin && !message.author.bot) {
 
-        var commandStr = message.cleanContent;
+        var commandStr = message.content
         if (!commandStr.startsWith("!")) return;
         const commandArray = commandStr.split(' ');
 
         if (commandArray[0] == "!set") {
             switch (commandArray[1]) {
-                case "vanneChannelId":
-                    console.log("changing vanne channel from " + vanneChannelId + " to " + commandArray[2])
-                    vanneChannelId = commandArray[2];
+                case "cv":
+                case "channels.vannes":
+                    console.log("changing vanne channel from " + data.channels.vannes + " to " + commandArray[2])
+                    data.channels.vannes = commandArray[2];
+                    break;
 
-                case "adminChannelId":
-                    console.log("changing admin channel from " + adminChannelId + " to " + commandArray[2])
-                    adminChannelId = commandArray[2]
-                    jsonData.vanneChannelId = vanneChannelId;
+                case "ca":
+                    data.channels.admin = commandArray[2]
+                    break;
 
-                case "emojiValideId":
-                    console.log("changing emojiValideId from " + emojiValideId + " to " + commandArray[2])
-                    emojiValideId = commandArray[2]
-                    jsonData.emojiValideId = emojiValideId;
+                case "ev":
+                case "emojiValide":
+                    var emojiArray = commandArray[2].split(':');
+                    data.emojis.valid.name = emojiArray[1];
+                    data.emojis.valid.id = emojiArray[2].slice(0, -1);
+                    break;
 
-                case "emojiPasValideId":
-                    console.log("changing emojiPasValideId from " + emojiPasValideId + " to " + commandArray[2])
-                    emojiPasValideId = commandArray[2]
-                    jsonData.emojiPasValideId = emojiPasValideId;
+                case "epv":
+                case "emojiPasValide":
+                    var emojiArray = commandArray[2].split(':');
+                    data.emojis.notValid.name = emojiArray[1];
+                    data.emojis.notValid.id = emojiArray[2].slice(0, -1)
+                    break;
 
+                case "min":
+                case "mrc":
                 case "minReactionNumber":
-                    console.log("changing minReactionNumber from " + minReactionNumber + " to " + commandArray[2])
-                    minReactionNumber = Number.parseInt(commandArray[2]);
-                    jsonData.minReactionNumber = minReactionNumber;
-
-                case '*':
-                    data = JSON.stringify(jsonData)
-                    fs.writeFileSync(filepath, data)
-                    message.react("✅");
+                    data.minReactionNumber = Number.parseInt(commandArray[2]);
+                    break;
             }
+
+            fs.writeFileSync(filepath, JSON.stringify(data))
+            message.react("✅");
+        }
+        else if (commandArray[0] == "!get") {
+            console.log("get command")
+            message.reply(`infos:
+    data.minReactionNumber: ${data.minReactionNumber}
+    data.channels.vannes <#${data.channels.vannes}>
+    data.channels.admin <#${data.channels.admin}>
+    data.emojis.valid.id <:${data.emojis.valid.name}:${data.emojis.valid.id}>
+    data.emojis.notValid.id <:${data.emojis.notValid.name}:${data.emojis.notValid.id}>
+    `);
         }
         else if (commandArray[0] == "!help") {
             message.reply(`Commandes: 
     !set
-      vanneChannelId      [id] 
-      adminChannelId      [id]
-      emojiValideId       [id]
-      emojiPasValideId    [id]
-      minReactionNumber   [number]
+      data.channels.vannes      [id] 
+      data.channels.admin      [id]
+      data.emojis.valid.id       [id]
+      data.emojis.notValid.id    [id]
+      data.minReactionNumber   [number]
                     `);
         }
-        else if (commandArray[0] == "!what") {
+        else {
             console.log(message);
         }
     }
