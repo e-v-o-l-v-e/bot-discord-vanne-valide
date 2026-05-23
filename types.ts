@@ -2,6 +2,7 @@ export interface Data {
     channels: Channels;
     emojis: Emoji;
     minReactionNumber: number;
+    embeds: Embed[]
 }
 
 export interface Channels {
@@ -19,4 +20,8 @@ export interface Valid {
     name: string;
 }
 
-export const Data = {};
+export interface Embed {
+    id: string;
+    vanneId: string;
+    context: number;
+}
