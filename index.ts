@@ -53,30 +53,37 @@ client.on("messageReactionAdd", async (reaction) => {
         }
     }
 
-    // console.log(reaction)
+    const rm = reaction.message as Message;
 
-    // pas un emoji specifique au serv
-    if (reaction.emoji.id == null) {
-        return;
+    if (rm.channelId == data.channels.vannes) {
+        if (reaction.emoji.identifier.slice(1) != '%EF%B8%8F%E2%83%A3') return;
+
+        const nContext = Number(reaction.emoji.identifier.charAt(0));
+
+        for (let i = 0; i < nContext; i++) {
+            rm.channel.fetch()
+        }
+    };
+
+    // not valid emoji
+    if (reaction.emoji.id == null) return; // not guild specific
+    if (reaction.emoji.id != data.emojis.valid.id) return;
+
+    if (reaction.count && reaction.count == data.minReactionNumber) {
+        const channel = client.channels.cache.get(data.channels.vannes) as TextChannel;
+        const sender = rm.guild?.members.cache.get(rm.author?.id)
+
+        const embed = new EmbedBuilder()
+            .setAuthor({ name: sender?.nickname || "Utilisateur Inconnu", iconURL: sender?.displayAvatarURL() || rm.author.defaultAvatarURL })
+            .setURL(rm.url)
+            .setTitle(rm.cleanContent);
+
+        channel.send({ embeds: [embed] })
+        channel.messages.fetch({ around: rm.id, limit: 5 }).then(messages.array.forEach(element => {
+            console.log(element)
+        }));
     }
-
-    // console.log(reaction.emoji.id);
-
-    const message = reaction.message as Message;
-    if (message.channelId != data.channels.vannes)
-        if (reaction.emoji.id == data.emojis.valid.id)
-            if (reaction.count && reaction.count == data.minReactionNumber) {
-                const channel = client.channels.cache.get(data.channels.vannes) as TextChannel;
-                const sender = message.guild?.members.cache.get(message.author?.id)
-
-                const embed = new EmbedBuilder()
-                    .setAuthor({ name: sender?.nickname || "Utilisateur Inconnu", iconURL: sender?.displayAvatarURL() || message.author.defaultAvatarURL })
-                    .setURL(message.url)
-                    .setTitle(message.cleanContent);
-
-                channel.send({ embeds: [embed] })
-            }
-})
+});
 
 
 // ajoute les reactions aux messages transférés
@@ -146,24 +153,6 @@ client.on("messageCreate", async (message) => {
     data.emojis.valid.id (ev): <:${data.emojis.valid.name}:${data.emojis.valid.id}>
     data.emojis.notValid.id (epv): <:${data.emojis.notValid.name}:${data.emojis.notValid.id}>
     `);
-        }
-        else if (commandArray[0] == "!embed") {
-            const embed = new EmbedBuilder()
-                .setColor(991199)
-                .setTitle("omg une blague trop marrante")
-                .setURL('https://discord.com/channels/1195401460498837648/1502281806995656814/1507336115533774919')
-                .setAuthor({ name: 'Marco Polo', iconURL: 'https://imgur.com/gallery/most-pick-resistant-lock-existence-AX5AY9d' })
-                .setDescription("nan bah en gros là c'est juste un test mais dans l'idée ce sera la blague" + "si jamais" +
-                    "test \n eww")
-                .setFooter({ text: 'Some footer text here', iconURL: 'https://i.imgur.com/AfFp7pu.png' });
-
-            const channel = client.channels.cache.get(data.channels.admin) as TextChannel;
-            const MSG = await channel.send({ embeds: [embed] });
-
-            channel.send("now i will change it")
-
-            const newEmbed = new EmbedBuilder().setTitle("unc hangement sauvage apparatn")
-            MSG.edit({ embeds: [newEmbed] })
         }
         else if (commandArray[0] == "!help") {
             message.reply(`Commandes: 
