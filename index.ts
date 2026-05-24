@@ -54,15 +54,34 @@ client.on("messageReactionAdd", async (reaction) => {
     }
 
     const rm = reaction.message as Message;
+    const cv = client.channels.cache.get(data.channels.vannes) as TextChannel;
+    const sender = rm.guild?.members.cache.get(rm.author?.id)
 
     if (rm.channelId == data.channels.vannes) {
         if (reaction.emoji.identifier.slice(1) != '%EF%B8%8F%E2%83%A3') return;
 
         const nContext = Number(reaction.emoji.identifier.charAt(0));
+        var context = "";
 
-        for (let i = 0; i < nContext; i++) {
-            rm.channel.fetch()
-        }
+        await rm.channel.messages.fetch({ before: rm.id, limit: nContext })
+            .then(fetchedMessages => {
+                fetchedMessages.forEach(element => {
+                    console.log(element.cleanContent)
+                    context += element.cleanContent;
+                    console.log(context)
+                });
+            })
+            .catch(console.error);
+
+        console.log("nContext: " + nContext + ".\ncontext: " + context)
+
+        const embed = new EmbedBuilder()
+            .setAuthor({ name: sender?.displayName || "Utilisateur Inconnu", iconURL: sender?.displayAvatarURL() || rm.author.defaultAvatarURL })
+            .setURL(rm.url)
+            .setTitle(rm.cleanContent)
+            .setDescription(context);
+
+        rm.edit({ embeds: [embed] });
     };
 
     // not valid emoji
@@ -70,18 +89,13 @@ client.on("messageReactionAdd", async (reaction) => {
     if (reaction.emoji.id != data.emojis.valid.id) return;
 
     if (reaction.count && reaction.count == data.minReactionNumber) {
-        const channel = client.channels.cache.get(data.channels.vannes) as TextChannel;
-        const sender = rm.guild?.members.cache.get(rm.author?.id)
 
         const embed = new EmbedBuilder()
-            .setAuthor({ name: sender?.nickname || "Utilisateur Inconnu", iconURL: sender?.displayAvatarURL() || rm.author.defaultAvatarURL })
+            .setAuthor({ name: sender?.displayName || "Utilisateur Inconnu", iconURL: sender?.displayAvatarURL() || rm.author.defaultAvatarURL })
             .setURL(rm.url)
             .setTitle(rm.cleanContent);
 
-        channel.send({ embeds: [embed] })
-        channel.messages.fetch({ around: rm.id, limit: 5 }).then(messages.array.forEach(element => {
-            console.log(element)
-        }));
+        cv.send({ embeds: [embed] });
     }
 });
 
