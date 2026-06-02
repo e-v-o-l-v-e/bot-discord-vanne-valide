@@ -8,6 +8,7 @@ export interface Data {
 export interface Channels {
     vannes: string;
     admin: string;
+    love: string;
 }
 
 export interface Emoji {

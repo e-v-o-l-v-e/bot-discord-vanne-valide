@@ -14,7 +14,7 @@ try {
 } catch {
     console.error("failed to read json")
     data = {
-        channels: { vannes: "", admin: "" },
+        channels: { vannes: "", admin: "", love: "" },
         emojis: {
             valid: { id: "", name: "" },
             notValid: { id: "", name: "" }
@@ -114,6 +114,11 @@ client.on("messageCreate", async (message) => {
                 if (channel) channel.send("un ou plusieurs ids d'emoji sont mauvais");
             }
         }
+        return;
+    }
+
+    if (message.channelId == data.channels.love) {
+        message.react("❤️")
     }
 
     if (message.channelId == data.channels.admin && !message.author.bot) {
@@ -126,12 +131,16 @@ client.on("messageCreate", async (message) => {
             switch (commandArray[1]) {
                 case "cv":
                 case "channels.vannes":
-                    console.log("changing vanne channel from " + data.channels.vannes + " to " + commandArray[2])
+                    // console.log("changing vanne channel from " + data.channels.vannes + " to " + commandArray[2])
                     data.channels.vannes = commandArray[2].slice(2, -1);
                     break;
 
                 case "ca":
                     data.channels.admin = commandArray[2].slice(2, -1);
+                    break;
+
+                case "cl":
+                    data.channels.love = commandArray[2].slice(2, -1);
                     break;
 
                 case "ev":
@@ -155,7 +164,7 @@ client.on("messageCreate", async (message) => {
                     break;
             }
 
-            fs.writeFileSync(filepath, JSON.stringify(data))
+            fs.writeFileSync(filepath, JSON.stringify(data, null, 2))
             message.react("✅");
         }
         else if (commandArray[0] == "!get") {
@@ -164,6 +173,7 @@ client.on("messageCreate", async (message) => {
     data.minReactionNumber (min, mrn): ${data.minReactionNumber}
     data.channels.vannes (cv): <#${data.channels.vannes}>
     data.channels.admin (ca): <#${data.channels.admin}>
+    data.channels.love (ca): <#${data.channels.love}>
     data.emojis.valid.id (ev): <:${data.emojis.valid.name}:${data.emojis.valid.id}>
     data.emojis.notValid.id (epv): <:${data.emojis.notValid.name}:${data.emojis.notValid.id}>
     `);
