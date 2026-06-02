@@ -1,14 +1,19 @@
 {
-  "name": "discord-vanne",
+  "name": "bot-discord-vanne",
   "version": "1.2.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm install",
+    "start": "node main.ts"
+  },
+  "bin": {
+    "bot-discord-vanne": "main.ts"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "evolve",
+  "license": "GPLv3",
   "type": "module",
   "dependencies": {
     "discord.js": "^14.26.4",
