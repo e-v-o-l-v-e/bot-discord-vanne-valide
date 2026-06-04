@@ -1,6 +1,6 @@
 {
   "channels": {
-    "vannes": "1502281806995656814",
+    "vannes": "1502069249727004912",
     "admin": "1195401581651316868",
     "love": "1507719342970765502"
   },
@@ -18,5 +18,5 @@
       "name": "load"
     }
   },
-  "minReactionNumber": 1
+  "minReactionNumber": 2
 }
