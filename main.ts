@@ -84,8 +84,6 @@ client.on("messageReactionAdd", async (reaction) => {
         const nContext = Number(reaction.emoji.identifier.charAt(0));
         let context = "";
 
-        console.log("\nwaiting for messages...");
-
         try {
             if (!prevEmbed.url) {
                 console.log("url undefined")
@@ -146,6 +144,7 @@ client.on("messageReactionAdd", async (reaction) => {
     if (reaction.emoji.id !== data.emojis.valid.id) return;
 
     if (reaction.count && reaction.count === data.minReactionNumber) {
+
         const embed = new EmbedBuilder()
             .setAuthor({
                 name: sender?.displayName || "Utilisateur Inconnu",
@@ -156,12 +155,16 @@ client.on("messageReactionAdd", async (reaction) => {
 
         await cv.send({ embeds: [embed] });
     }
-
 });
 
 
 // ajoute les reactions aux messages transférés
 client.on("messageCreate", async (message) => {
+
+    if (message.channelId == data.channels.love) {
+        message.react("❤️");
+        return;
+    }
 
     if (message.channelId == data.channels.vannes) {
         try {
@@ -177,10 +180,6 @@ client.on("messageCreate", async (message) => {
         return;
     }
 
-    if (message.channelId == data.channels.love) {
-        message.react("❤️")
-    }
-
     if (message.channelId == data.channels.admin && !message.author.bot) {
 
         var commandStr = message.content
@@ -191,7 +190,6 @@ client.on("messageCreate", async (message) => {
             switch (commandArray[1]) {
                 case "cv":
                 case "channels.vannes":
-                    // console.log("changing vanne channel from " + data.channels.vannes + " to " + commandArray[2])
                     data.channels.vannes = commandArray[2].slice(2, -1);
                     break;
 
@@ -235,7 +233,6 @@ client.on("messageCreate", async (message) => {
             message.react("✅");
         }
         else if (commandArray[0] == "!get") {
-            console.log("get command")
             message.reply(`infos:
     data.minReactionNumber (min, mrn): ${data.minReactionNumber}
     data.channels.vannes (cv): <#${data.channels.vannes}>
@@ -255,9 +252,6 @@ client.on("messageCreate", async (message) => {
       data.emojis.notValid.id    [id]
       data.minReactionNumber   [number]
                     `);
-        }
-        else {
-            console.log(message);
         }
     }
 });
