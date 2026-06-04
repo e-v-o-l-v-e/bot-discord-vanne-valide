@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
-import { Client, EmbedBuilder, Emoji, GatewayIntentBits, Guild, GuildEmojiManager, GuildMember, Message, messageLink, Partials, TextChannel } from 'discord.js';
+import { Client, Collection, Embed, EmbedBuilder, Emoji, GatewayIntentBits, Guild, GuildEmojiManager, GuildMember, Message, messageLink, Partials, TextChannel } from 'discord.js';
 import * as fs from 'fs';
 import { type Data } from './types.ts';
+import { channel } from 'diagnostics_channel';
 
 dotenv.config()
 
@@ -17,7 +18,8 @@ try {
         channels: { vannes: "", admin: "", love: "" },
         emojis: {
             valid: { id: "", name: "" },
-            notValid: { id: "", name: "" }
+            notValid: { id: "", name: "" },
+            loading: { id: "", name: "" }
         },
         minReactionNumber: 2,
         embeds: []
@@ -48,55 +50,113 @@ client.on("messageReactionAdd", async (reaction) => {
         try {
             await reaction.fetch();
         } catch (error) {
-            console.error('Something went wrong when fetching the message:', error);
+            console.error('Something went wrong when fetching the reaction:', error);
+            return;
+        }
+    }
+    if (reaction.message.partial) {
+        try {
+            await reaction.message.fetch();
+        } catch (error) {
+            console.error('Something went wrong when fetching the partial message:', error);
             return;
         }
     }
 
     const rm = reaction.message as Message;
-    const cv = client.channels.cache.get(data.channels.vannes) as TextChannel;
-    const sender = rm.guild?.members.cache.get(rm.author?.id)
 
-    if (rm.channelId == data.channels.vannes) {
-        if (reaction.emoji.identifier.slice(1) != '%EF%B8%8F%E2%83%A3') return;
+    const cv = client.channels.cache.get(data.channels.vannes) as TextChannel;
+    const sender = rm.guild?.members.cache.get(rm.author?.id);
+
+    if (rm.channelId === data.channels.vannes) {
+
+        if (reaction.count && reaction.count > 1) return;
+        // check if the emoji is a number
+        if (reaction.emoji.identifier.slice(1) !== '%EF%B8%8F%E2%83%A3') return;
+        const loadingReaction = rm.react(data.emojis.loading.id)
+
+        const prevEmbed = rm.embeds[0];
+        if (!prevEmbed) {
+            console.log("The message doesn't have an embed.");
+            return;
+        }
 
         const nContext = Number(reaction.emoji.identifier.charAt(0));
-        var context = "";
+        let context = "";
 
-        await rm.channel.messages.fetch({ before: rm.id, limit: nContext })
-            .then(fetchedMessages => {
-                fetchedMessages.forEach(element => {
-                    console.log(element.cleanContent)
-                    context += element.cleanContent;
-                    console.log(context)
-                });
-            })
-            .catch(console.error);
+        console.log("\nwaiting for messages...");
 
-        console.log("nContext: " + nContext + ".\ncontext: " + context)
+        try {
+            if (!prevEmbed.url) {
+                console.log("url undefined")
+                return;
+            }
 
-        const embed = new EmbedBuilder()
-            .setAuthor({ name: sender?.displayName || "Utilisateur Inconnu", iconURL: sender?.displayAvatarURL() || rm.author.defaultAvatarURL })
-            .setURL(rm.url)
-            .setTitle(rm.cleanContent)
-            .setDescription(context);
+            const urlArray = prevEmbed.url.split('/');
 
-        rm.edit({ embeds: [embed] });
-    };
+            const originalMessageChannelId = urlArray[urlArray.length - 2];
+            const originalMessageId = urlArray[urlArray.length - 1];
+            const originalMessageChannel = client.channels.cache.get(originalMessageChannelId) as TextChannel;
+
+            if (!originalMessageChannelId) {
+                console.log("originalMessageChannelId undefined");
+                return;
+            }
+            if (!originalMessageId) {
+                console.log("originalMessageId undefined");
+                return;
+            }
+
+            const fetchedCollection = await originalMessageChannel.messages.fetch({ before: originalMessageId, limit: nContext });
+            const fetchedMessages = Array.from(fetchedCollection.values());
+
+            // loop from oldest to newest message
+            fetchedMessages.reverse().forEach(element => {
+                if (element.cleanContent) {
+                    context += element.cleanContent + "\n";
+                }
+            });
+
+        } catch (error) {
+            console.error("Failed to fetch history:", error);
+        }
+
+        console.log("nContext: " + nContext + ".\ncontext:\n" + context);
+
+        // update embed description
+        const embed = EmbedBuilder.from(prevEmbed).setDescription(context || "No context text found.");
+        await rm.edit({ embeds: [embed] });
+
+        // remove the reaction
+        try {
+            // This deletes the entire emoji reaction instance from the message
+            const checkReaction = await rm.react('✅')
+
+            await reaction.remove();
+
+            (await loadingReaction).remove()
+            // (await checkReaction).remove()
+        } catch (error) {
+            console.error("Failed to remove the reaction entirely:", error);
+        }
+    }
 
     // not valid emoji
-    if (reaction.emoji.id == null) return; // not guild specific
-    if (reaction.emoji.id != data.emojis.valid.id) return;
+    if (reaction.emoji.id == null) return; // default emojis don't have id
+    if (reaction.emoji.id !== data.emojis.valid.id) return;
 
-    if (reaction.count && reaction.count == data.minReactionNumber) {
-
+    if (reaction.count && reaction.count === data.minReactionNumber) {
         const embed = new EmbedBuilder()
-            .setAuthor({ name: sender?.displayName || "Utilisateur Inconnu", iconURL: sender?.displayAvatarURL() || rm.author.defaultAvatarURL })
-            .setURL(rm.url)
-            .setTitle(rm.cleanContent);
+            .setAuthor({
+                name: sender?.displayName || "Utilisateur Inconnu",
+                iconURL: sender?.displayAvatarURL() || rm.author.defaultAvatarURL
+            })
+            .setURL(rm.url || "https://youtu.be/dQw4w9WgXcQ?si=y-vQVbG5aatub4mE")
+            .setTitle(rm.cleanContent || "Qu'est-ce qui est jaune et qui attend ?");
 
-        cv.send({ embeds: [embed] });
+        await cv.send({ embeds: [embed] });
     }
+
 });
 
 
@@ -157,6 +217,13 @@ client.on("messageCreate", async (message) => {
                     data.emojis.notValid.id = emojiArray[2].slice(0, -1)
                     break;
 
+                case "el":
+                case "emojiLoading":
+                    var emojiArray = commandArray[2].split(':');
+                    data.emojis.loading.name = emojiArray[1];
+                    data.emojis.loading.id = emojiArray[2].slice(0, -1);
+                    break;
+
                 case "min":
                 case "mrc":
                 case "minReactionNumber":
@@ -176,6 +243,7 @@ client.on("messageCreate", async (message) => {
     data.channels.love (ca): <#${data.channels.love}>
     data.emojis.valid.id (ev): <:${data.emojis.valid.name}:${data.emojis.valid.id}>
     data.emojis.notValid.id (epv): <:${data.emojis.notValid.name}:${data.emojis.notValid.id}>
+    data.emojis.loading (el): <:${data.emojis.loading.name}:${data.emojis.loading.id}>
     `);
         }
         else if (commandArray[0] == "!help") {

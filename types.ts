@@ -14,6 +14,7 @@ export interface Channels {
 export interface Emoji {
     valid: Valid;
     notValid: Valid;
+    loading: Valid;
 }
 
 export interface Valid {

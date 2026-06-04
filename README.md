@@ -6,6 +6,7 @@ Discord bot that automatically forwards messages (as embeds) to a "vannes" ("jok
 
 - When a message receives a set number of your valid emoji reactions, it is automatically posted as an embed in the *vannes* channel
 - Messages posted in the *vannes* channel automatically receive both vote emojis (valid and notValid)
+- Messages posted in the *love* channel automatically receive a reaction
 - An admin channel allows configuring the bot via text commands
 
 ## Admin commands
@@ -14,8 +15,10 @@ Discord bot that automatically forwards messages (as embeds) to a "vannes" ("jok
 |---|---|
 | `!set cv #channel` | Set the vannes channel |
 | `!set ca #channel` | Set the admin channel |
+| `!set cl #channel` | Set the love channel |
 | `!set ev :emoji:` | Set the "valid" emoji |
 | `!set epv :emoji:` | Set the "not valid" emoji |
+| `!set el :emoji:` | Set the loading emoji |
 | `!set min number` | Minimum number of reactions to forward a message |
 | `!get` | Show current configuration |
 

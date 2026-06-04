@@ -12,6 +12,10 @@
     "notValid": {
       "id": "1491701557451030638",
       "name": "harnein_pas_valide"
+    },
+    "reactionEmoji": {
+      "id": "1511733850596704346",
+      "name": "load"
     }
   },
   "minReactionNumber": 1
