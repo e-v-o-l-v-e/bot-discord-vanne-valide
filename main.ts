@@ -1,31 +1,16 @@
 import dotenv from 'dotenv';
 import { Client, EmbedBuilder, GatewayIntentBits, Message, Partials, TextChannel } from 'discord.js';
 import * as fs from 'fs';
-import { type Data } from './types.ts';
+import { type GuildSettingsMap } from './types.ts';
 
-dotenv.config()
-
-let data: Data
-const filepath = './data.json';
-
-try {
-    const rawData = fs.readFileSync(filepath, 'utf8')
-    data = JSON.parse(rawData) as Data;
-} catch {
-    console.error("failed to read json")
-    data = {
-        channels: { vannes: "", admin: "", love: "" },
-        emojis: {
-            valid: { id: "", name: "" },
-            notValid: { id: "", name: "" },
-            loading: { id: "", name: "" }
-        },
-        minReactionNumber: 2,
-    };
-}
 
 
 // initialisation
+dotenv.config()
+
+let gsm: GuildSettingsMap;
+const filepath = './guild.json';
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -40,12 +25,51 @@ const client = new Client({
     ],
 });
 
+readSettings()
+
+
+
+// helpers
+function readSettings() {
+    try {
+        const rawData = fs.readFileSync(filepath, 'utf8')
+        gsm = JSON.parse(rawData) as GuildSettingsMap;
+    } catch {
+        console.error("failed to read json")
+    }
+}
+
+function writeSettings() {
+    fs.writeFileSync(filepath, JSON.stringify(gsm, null, 2));
+}
+
+function getSettings(id: string) {
+    if (!gsm) gsm = {};
+
+    if (!gsm[id]) {
+        gsm[id] = {
+            channels: { vannes: "", admin: "", love: "" },
+            emojis: {
+                valid: { id: "", name: "" },
+                notValid: { id: "", name: "" },
+                loading: { id: "", name: "" }
+            },
+            minReactionNumber: 2,
+        };
+        writeSettings();
+        readSettings();
+    }
+    return gsm[id];
+}
+
+
+
 
 // pour chaque reaction ajoutée
 // check si on est ailleurs que dans le channel de vanne
 // si oui check si c'est :harnein_valide:
 // si oui check si le minimum de reaction est atteint
-// si oui embed le message dans le channel data.channels.vannes et y reagi avec :harnein_valide: et :harnein_valide_pas:
+// si oui embed le message dans le channel guild.channels.vannes et y reagi avec :harnein_valide: et :harnein_valide_pas:
 client.on("messageReactionAdd", async (reaction) => {
 
     if (reaction.partial) {
@@ -66,13 +90,15 @@ client.on("messageReactionAdd", async (reaction) => {
     }
 
     const rm = reaction.message as Message;
+    if (!rm.guildId) return;
+    const guildSettings = getSettings(rm.guildId);
 
-    if (rm.channelId === data.channels.vannes) {
+    if (rm.channelId === guildSettings.channels.vannes) {
 
         if (reaction.count && reaction.count > 1) return;
         // check if the emoji is a number
         if (reaction.emoji.identifier.slice(1) !== '%EF%B8%8F%E2%83%A3') return;
-        const loadingReaction = rm.react(data.emojis.loading.id)
+        const loadingReaction = rm.react(guildSettings.emojis.loading.id)
 
         const prevEmbed = rm.embeds[0];
         if (!prevEmbed) {
@@ -110,10 +136,10 @@ client.on("messageReactionAdd", async (reaction) => {
                 return;
             }
 
-            const originalMessageChannel = client.channels.cache.get(originalMessageChannelId) as TextChannel;
-            const originalMessage = await originalMessageChannel.messages.fetch(originalMessageId);
-            const anchorMessageId = originalMessage.reference?.messageId ?? originalMessageId;
-            const fetchedCollection = await originalMessageChannel.messages.fetch({ before: anchorMessageId, limit: nContext });
+            const ogChannel = await client.channels.fetch(originalMessageChannelId) as TextChannel;
+            const ogMessage = await ogChannel.messages.fetch(originalMessageId);
+            const anchor = ogMessage.reference?.messageId ?? originalMessageId;
+            const fetchedCollection = await ogChannel.messages.fetch({ before: anchor, limit: nContext });
             const fetchedMessages = Array.from(fetchedCollection.values());
 
             // loop from oldest to newest message
@@ -150,9 +176,9 @@ client.on("messageReactionAdd", async (reaction) => {
 
     // not valid emoji
     if (reaction.emoji.id == null) return; // default emojis don't have id
-    if (reaction.emoji.id !== data.emojis.valid.id) return;
+    if (reaction.emoji.id !== guildSettings.emojis.valid.id) return;
 
-    if (reaction.count === data.minReactionNumber) {
+    if (reaction.count === guildSettings.minReactionNumber) {
 
         const sender = rm.guild?.members.cache.get(rm.author.id);
 
@@ -171,7 +197,7 @@ client.on("messageReactionAdd", async (reaction) => {
             embed = EmbedBuilder.from(embed).setDescription(desc);
         }
 
-        const cv = client.channels.cache.get(data.channels.vannes) as TextChannel;
+        const cv = await client.channels.fetch(guildSettings.channels.vannes) as TextChannel;
         await cv.send({ embeds: [embed] });
     }
 });
@@ -179,27 +205,29 @@ client.on("messageReactionAdd", async (reaction) => {
 
 // ajoute les reactions aux messages transférés
 client.on("messageCreate", async (message) => {
+    if (!message.guildId) return;
+    const guildSettings = getSettings(message.guildId);
 
-    if (message.channelId === data.channels.love) {
+    if (message.channelId === guildSettings.channels.love) {
         await message.react("❤️");
         return;
     }
 
-    if (message.channelId === data.channels.vannes) {
+    if (message.channelId === guildSettings.channels.vannes) {
         try {
-            await message.react(data.emojis.valid.id)
-            await message.react(data.emojis.notValid.id)
+            await message.react(guildSettings.emojis.valid.id)
+            await message.react(guildSettings.emojis.notValid.id)
         } catch {
             console.log("les emojis n'existent pas");
-            if (data.channels.vannes !== data.channels.admin) {
-                const channel = client.channels.cache.get(data.channels.admin) as TextChannel;
+            if (guildSettings.channels.vannes !== guildSettings.channels.admin) {
+                const channel = client.channels.cache.get(guildSettings.channels.admin) as TextChannel;
                 if (channel) channel.send("un ou plusieurs ids d'emoji sont mauvais");
             }
         }
         return;
     }
 
-    if (message.channelId === data.channels.admin && !message.author.bot) {
+    if (message.channelId === guildSettings.channels.admin && !message.author.bot) {
 
         let commandStr = message.content
         if (!commandStr.startsWith("!")) return;
@@ -209,63 +237,69 @@ client.on("messageCreate", async (message) => {
             switch (commandArray[1]) {
                 case "cv":
                 case "channels.vannes":
-                    data.channels.vannes = commandArray[2].slice(2, -1);
+                    guildSettings.channels.vannes = commandArray[2].slice(2, -1);
                     break;
 
                 case "ca":
-                    data.channels.admin = commandArray[2].slice(2, -1);
+                    guildSettings.channels.admin = commandArray[2].slice(2, -1);
                     break;
 
                 case "cl":
-                    data.channels.love = commandArray[2].slice(2, -1);
+                    guildSettings.channels.love = commandArray[2].slice(2, -1);
                     break;
 
                 case "ev":
                 case "emojiValide": {
                     const emojiArray = commandArray[2].split(':');
-                    data.emojis.valid.name = emojiArray[1];
-                    data.emojis.valid.id = emojiArray[2].slice(0, -1);
+                    guildSettings.emojis.valid.name = emojiArray[1];
+                    guildSettings.emojis.valid.id = emojiArray[2].slice(0, -1);
                     break;
                 }
 
                 case "epv":
                 case "emojiPasValide": {
                     const emojiArray = commandArray[2].split(':');
-                    data.emojis.notValid.name = emojiArray[1];
-                    data.emojis.notValid.id = emojiArray[2].slice(0, -1);
+                    guildSettings.emojis.notValid.name = emojiArray[1];
+                    guildSettings.emojis.notValid.id = emojiArray[2].slice(0, -1);
                     break;
                 }
 
                 case "el":
                 case "emojiLoading": {
-                    const emojiArray = commandArray[2].split(':');
-                    data.emojis.loading.name = emojiArray[1];
-                    data.emojis.loading.id = emojiArray[2].slice(0, -1);
+                    try {
+                        const emojiArray = commandArray[2].split(':');
+                        guildSettings.emojis.loading.name = emojiArray[1];
+                        guildSettings.emojis.loading.id = emojiArray[2].slice(0, -1);
+                    } catch {
+                        const emojiArray = commandArray[2].split(':');
+                        guildSettings.emojis.loading.name = emojiArray[0]
+                        guildSettings.emojis.loading.id = emojiArray[1]
+                    }
                     break;
                 }
 
                 case "min":
                 case "mrc":
                 case "minReactionNumber":
-                    data.minReactionNumber = Number.parseInt(commandArray[2]) || 2;
+                    guildSettings.minReactionNumber = Number.parseInt(commandArray[2]) || 2;
                     break;
 
                 default:
                     return;
             }
 
-            fs.writeFileSync(filepath, JSON.stringify(data, null, 2))
+            writeSettings()
             message.react("✅");
         }
         else if (commandArray[0] === "!get") {
             message.reply(`infos:
-    data.minReactionNumber (min, mrn): ${data.minReactionNumber}
-    data.channels.vannes (cv): <#${data.channels.vannes}>
-    data.channels.admin (ca): <#${data.channels.admin}>
-    data.channels.love (cl): <#${data.channels.love}>
-    data.emojis.valid.id (ev): <:${data.emojis.valid.name}:${data.emojis.valid.id}>
-    data.emojis.notValid.id (epv): <:${data.emojis.notValid.name}:${data.emojis.notValid.id}>
-    data.emojis.loading (el): <:${data.emojis.loading.name}:${data.emojis.loading.id}>
+    guild.minReactionNumber (min, mrn): ${guildSettings.minReactionNumber}
+    guild.channels.vannes (cv): <#${guildSettings.channels.vannes}>
+    guild.channels.admin (ca): <#${guildSettings.channels.admin}>
+    guild.channels.love (cl): <#${guildSettings.channels.love}>
+    guild.emojis.valid.id (ev): <:${guildSettings.emojis.valid.name}:${guildSettings.emojis.valid.id}>
+    guild.emojis.notValid.id (epv): <:${guildSettings.emojis.notValid.name}:${guildSettings.emojis.notValid.id}>
+    guild.emojis.loading (el): <:${guildSettings.emojis.loading.name}:${guildSettings.emojis.loading.id}>
     `);
         }
         else if (commandArray[0] === "!help") {

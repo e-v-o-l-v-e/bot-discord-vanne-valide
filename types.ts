@@ -1,4 +1,6 @@
-export interface Data {
+export type GuildSettingsMap = Record<string, GuildSettings>
+
+export interface GuildSettings {
     channels: Channels;
     emojis: Emoji;
     minReactionNumber: number;
