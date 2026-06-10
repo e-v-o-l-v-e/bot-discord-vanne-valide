@@ -1,15 +1,17 @@
 import dotenv from 'dotenv';
 import { Client, EmbedBuilder, GatewayIntentBits, Message, Partials, TextChannel } from 'discord.js';
-import * as fs from 'fs';
 import { type GuildSettingsMap } from './types.ts';
+import { Settings } from './settings.ts';
 
 
 
-// initialisation
+//-----------------
+// INITIALISATION 
+//-----------------
+
 dotenv.config()
 
-let gsm: GuildSettingsMap;
-const filepath = './guild.json';
+let gsm: GuildSettingsMap = {};
 
 const client = new Client({
     intents: [
@@ -25,45 +27,13 @@ const client = new Client({
     ],
 });
 
-readSettings()
+Settings.read(gsm);
 
 
 
-// helpers
-function readSettings() {
-    try {
-        const rawData = fs.readFileSync(filepath, 'utf8')
-        gsm = JSON.parse(rawData) as GuildSettingsMap;
-    } catch {
-        console.error("failed to read json")
-    }
-}
-
-function writeSettings() {
-    fs.writeFileSync(filepath, JSON.stringify(gsm, null, 2));
-}
-
-function getSettings(id: string) {
-    if (!gsm) gsm = {};
-
-    if (!gsm[id]) {
-        gsm[id] = {
-            channels: { vannes: "", admin: "", love: "" },
-            emojis: {
-                valid: { id: "", name: "" },
-                notValid: { id: "", name: "" },
-                loading: { id: "", name: "" }
-            },
-            minReactionNumber: 2,
-        };
-        writeSettings();
-        readSettings();
-    }
-    return gsm[id];
-}
-
-
-
+//------------
+// PROCESSING
+//------------
 
 // pour chaque reaction ajoutée
 // check si on est ailleurs que dans le channel de vanne
@@ -91,7 +61,7 @@ client.on("messageReactionAdd", async (reaction) => {
 
     const rm = reaction.message as Message;
     if (!rm.guildId) return;
-    const guildSettings = getSettings(rm.guildId);
+    const guildSettings = Settings.get(gsm, rm.guildId);
 
     if (rm.channelId === guildSettings.channels.vannes) {
 
@@ -206,7 +176,7 @@ client.on("messageReactionAdd", async (reaction) => {
 // ajoute les reactions aux messages transférés
 client.on("messageCreate", async (message) => {
     if (!message.guildId) return;
-    const guildSettings = getSettings(message.guildId);
+    const guildSettings = Settings.get(gsm, message.guildId);
 
     if (message.channelId === guildSettings.channels.love) {
         await message.react("❤️");
@@ -288,7 +258,7 @@ client.on("messageCreate", async (message) => {
                     return;
             }
 
-            writeSettings()
+            Settings.write(gsm)
             message.react("✅");
         }
         else if (commandArray[0] === "!get") {
@@ -321,4 +291,4 @@ Commandes:
 });
 
 
-client.login(process.env.DISCORD_TOKEN)
+
