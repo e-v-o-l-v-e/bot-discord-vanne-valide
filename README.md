@@ -1,6 +1,6 @@
 # discord-vanne
 
-Discord bot that automatically forwards messages (as embeds) to a "vannes" ("jokes" in french) channel when they receive enough reactions.
+Discord bot that automatically forwards messages (as embeds) to a "vannes" ("jokes" in french) channel when they receive enough reactions, and some other random things.
 
 ## How it works
 
@@ -25,7 +25,7 @@ Discord bot that automatically forwards messages (as embeds) to a "vannes" ("jok
 | `/show_settings`                   | Show the current configuration                   |
 | `/ping`                            | Replies with Pong                                |
 
-`/set` accepts any combination of options at once; only the provided options are updated.
+`/set` accepts any combination of options at once.
 
 ## Setup
 
