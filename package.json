@@ -1,6 +1,6 @@
 {
   "name": "bot-discord-vanne",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -19,5 +19,9 @@
     "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
     "json": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^6.1.1",
+    "typescript": "^6.0.3"
   }
 }

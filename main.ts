@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
-import { Client, EmbedBuilder, GatewayIntentBits, Message, Partials, TextChannel } from 'discord.js';
-import { type GuildSettingsMap } from './types.ts';
-import { Settings } from './settings.ts';
+import { Client, EmbedBuilder, GatewayIntentBits, Guild, GuildManager, GuildMember, GuildMemberRoleManager, Message, Partials, PermissionFlagsBits, PermissionsBitField, TextChannel, User } from 'discord.js';
+import * as Settings from './settings.ts';
+import * as SlashManager from './slashManager.ts';
 
 
 
@@ -10,8 +10,6 @@ import { Settings } from './settings.ts';
 //-----------------
 
 dotenv.config()
-
-let gsm: GuildSettingsMap = {};
 
 const client = new Client({
     intents: [
@@ -27,7 +25,11 @@ const client = new Client({
     ],
 });
 
-Settings.read(gsm);
+Settings.read();
+
+await SlashManager.init();
+
+client.login(process.env.DISCORD_TOKEN);
 
 
 
@@ -35,11 +37,37 @@ Settings.read(gsm);
 // PROCESSING
 //------------
 
-// pour chaque reaction ajoutée
-// check si on est ailleurs que dans le channel de vanne
-// si oui check si c'est :harnein_valide:
-// si oui check si le minimum de reaction est atteint
-// si oui embed le message dans le channel guild.channels.vannes et y reagi avec :harnein_valide: et :harnein_valide_pas:
+// slash commands
+client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.user.bot) return;
+    if (!interaction.guildId) return;
+
+    const member = interaction.member
+    if (!member) return;
+
+    const roles = member.roles as GuildMemberRoleManager;
+    const botManagerRole = Settings.get(interaction.guildId).managerRole;
+    if (!roles.cache.has(botManagerRole)) {
+        if (!(member.permissions instanceof PermissionsBitField)) return;
+        const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator)
+        if (!isAdmin) {
+            interaction.reply("haha t'as pas les perms espece de nul.")
+            return;
+        }
+    }
+
+    // console.log("commande reçu");
+    SlashManager.execute(interaction);
+})
+
+
+// for every reactoin added
+// check if it isn't in the joke channel
+// if yes check if it's the valid emoji
+// if yes check if there is enough reactions
+// if yes embed the message in the "vannes" channel
+// and react to it with (un)validation emojis
 client.on("messageReactionAdd", async (reaction) => {
 
     if (reaction.partial) {
@@ -61,7 +89,7 @@ client.on("messageReactionAdd", async (reaction) => {
 
     const rm = reaction.message as Message;
     if (!rm.guildId) return;
-    const guildSettings = Settings.get(gsm, rm.guildId);
+    const guildSettings = Settings.get(rm.guildId);
 
     if (rm.channelId === guildSettings.channels.vannes) {
 
@@ -173,10 +201,10 @@ client.on("messageReactionAdd", async (reaction) => {
 });
 
 
-// ajoute les reactions aux messages transférés
+// add reactions to messages depending on the channel
 client.on("messageCreate", async (message) => {
     if (!message.guildId) return;
-    const guildSettings = Settings.get(gsm, message.guildId);
+    const guildSettings = Settings.get(message.guildId);
 
     if (message.channelId === guildSettings.channels.love) {
         await message.react("❤️");
@@ -195,98 +223,6 @@ client.on("messageCreate", async (message) => {
             }
         }
         return;
-    }
-
-    if (message.channelId === guildSettings.channels.admin && !message.author.bot) {
-
-        let commandStr = message.content
-        if (!commandStr.startsWith("!")) return;
-        const commandArray = commandStr.split(' ');
-
-        if (commandArray[0] === "!set") {
-            switch (commandArray[1]) {
-                case "cv":
-                case "channels.vannes":
-                    guildSettings.channels.vannes = commandArray[2].slice(2, -1);
-                    break;
-
-                case "ca":
-                    guildSettings.channels.admin = commandArray[2].slice(2, -1);
-                    break;
-
-                case "cl":
-                    guildSettings.channels.love = commandArray[2].slice(2, -1);
-                    break;
-
-                case "ev":
-                case "emojiValide": {
-                    const emojiArray = commandArray[2].split(':');
-                    guildSettings.emojis.valid.name = emojiArray[1];
-                    guildSettings.emojis.valid.id = emojiArray[2].slice(0, -1);
-                    break;
-                }
-
-                case "epv":
-                case "emojiPasValide": {
-                    const emojiArray = commandArray[2].split(':');
-                    guildSettings.emojis.notValid.name = emojiArray[1];
-                    guildSettings.emojis.notValid.id = emojiArray[2].slice(0, -1);
-                    break;
-                }
-
-                case "el":
-                case "emojiLoading": {
-                    try {
-                        const emojiArray = commandArray[2].split(':');
-                        guildSettings.emojis.loading.name = emojiArray[1];
-                        guildSettings.emojis.loading.id = emojiArray[2].slice(0, -1);
-                    } catch {
-                        const emojiArray = commandArray[2].split(':');
-                        guildSettings.emojis.loading.name = emojiArray[0]
-                        guildSettings.emojis.loading.id = emojiArray[1]
-                    }
-                    break;
-                }
-
-                case "min":
-                case "mrc":
-                case "minReactionNumber":
-                    guildSettings.minReactionNumber = Number.parseInt(commandArray[2]) || 2;
-                    break;
-
-                default:
-                    return;
-            }
-
-            Settings.write(gsm)
-            message.react("✅");
-        }
-        else if (commandArray[0] === "!get") {
-            message.reply(`infos:
-    guild.minReactionNumber (min, mrn): ${guildSettings.minReactionNumber}
-    guild.channels.vannes (cv): <#${guildSettings.channels.vannes}>
-    guild.channels.admin (ca): <#${guildSettings.channels.admin}>
-    guild.channels.love (cl): <#${guildSettings.channels.love}>
-    guild.emojis.valid.id (ev): <:${guildSettings.emojis.valid.name}:${guildSettings.emojis.valid.id}>
-    guild.emojis.notValid.id (epv): <:${guildSettings.emojis.notValid.name}:${guildSettings.emojis.notValid.id}>
-    guild.emojis.loading (el): <:${guildSettings.emojis.loading.name}:${guildSettings.emojis.loading.id}>
-    `);
-        }
-        else if (commandArray[0] === "!help") {
-            message.reply(`\`\`\`
-Commandes:
-!get                              affiche les paramètres actuels
-!set <clé> <valeur>               modifie un paramètre et sauvegarde
-  cv / channels.vannes            <#channel>
-  ca                              <#channel>
-  cl                              <#channel>
-  ev / emojiValide                <:emoji:>
-  epv / emojiPasValide            <:emoji:>
-  el / emojiLoading               <:emoji:>
-  min / mrc / minReactionNumber   <nombre>
-!help                             affiche ce message
-\`\`\``);
-        }
     }
 });
 
